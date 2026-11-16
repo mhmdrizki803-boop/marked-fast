@@ -1,22 +1,30 @@
-# markdown-render-speed-02 — a faster drop-in for marked
+# make.fun markdown-render-speed-02
 
-[![make.fun · markdown-render-speed-02](https://make.fun/badge/markdown-render-speed-02.svg)](https://make.fun/bounty/markdown-render-speed-02)
-[![rank](https://make.fun/badge/markdown-render-speed-02/mhmdrizki803-boop/marked-fast/rank.svg)](https://make.fun/bounty/markdown-render-speed-02/leaderboard)
-[![reward](https://make.fun/badge/markdown-render-speed-02/mhmdrizki803-boop/marked-fast/reward.svg)](https://make.fun/bounty/markdown-render-speed-02)
+Entry for make.fun's **markdown-render-speed-02** bounty: render Markdown to
+exactly the HTML that marked 18.1.3 produces with its defaults (GFM on, breaks
+off, async off), as fast as possible.
 
-`parse(markdown)` returns exactly the HTML that marked 18.1.3 renders with its defaults — GFM on,
-breaks off, async off — and does it without the per-call setup marked's own entry point pays for.
+This entry exports `parse(markdown)` from `parse.js`. Instead of calling
+`marked.parse()`, it takes marked's `getDefaults()` option object once at module
+load and reuses it for every input, skipping the per-call option spreads, hook
+normalization, and option re-checks that are identical for every string. It
+then runs `Parser.parse(Lexer.lex(markdown, options), options)` with the same
+object handed to both stages. With no tokenizer, hooks, extensions, walkTokens,
+or renderer overrides, those options are exactly what marked itself would
+merge, and marked's own `parse()` delegates to the same lexer and parser, so the
+output is byte-identical.
 
-`marked.parse()` builds a fresh options object from two spreads and re-checks its hooks on every
-call, which is identical work for every string. This entry calls the same lexer and the same parser
-that marked itself uses, on one options object, so the HTML is byte-identical by construction rather
-than by reimplementation.
+`main.ts` is the scored driver. It reads `cases.json`, renders each case, and
+streams the JSON array of HTML strings to `html.json`, flushing in ~256 KB
+chunks so neither a large array nor a full-document string is kept live.
 
-    MAKEFUN_INPUT_DIR=in MAKEFUN_OUTPUT_DIR=out node main.ts
+Run it with:
 
-Vendored: `vendor/marked/` is marked 18.1.3's npm build, byte for byte, with its MIT licence and
-notice. Everything else here is the entry's own.
+```sh
+MAKEFUN_INPUT_DIR=in MAKEFUN_OUTPUT_DIR=out node main.ts
+```
 
-Entered for [make.fun's markdown render speed bounty](https://make.fun/bounty/markdown-render-speed-02).
-
-MIT licensed (see LICENSE).
+The renderer is a vendored, unmodified copy of
+[marked](https://github.com/markedjs/marked) 18.1.3 at
+`vendor/marked/marked.esm.js`; all credit for the parser and renderer goes to
+the marked project and its contributors.
